@@ -1,5 +1,8 @@
 # TRUnpacker
 
+<img width="520" height="352" alt="Screenshot 2026-10-01 025200" src="https://github.com/user-attachments/assets/bf0e0415-04b3-4b2c-977f-4ee4ff68a9f2" />
+
+
 Unpack TARA-packed `trgame.exe` and disable XIGNCODE in one step.
 
 Output is written next to the input as `*_unpacked.exe`  
