@@ -1,8 +1,5 @@
 # TRUnpacker
 
-<img width="520" height="352" alt="Screenshot 2026-10-01 025200" src="https://github.com/user-attachments/assets/bf0e0415-04b3-4b2c-977f-4ee4ff68a9f2" />
-
-
 Unpack TARA-packed `trgame.exe` and disable XIGNCODE in one step.
 
 Output is written next to the input as `*_unpacked.exe`  
@@ -30,7 +27,14 @@ TRUnpacker.exe --patch-only trgame_unpacked.exe
 |---|---|
 | *(default)* | Unpack + disable XIGNCODE |
 | `--no-xigncode` | Unpack only (keep anti-cheat) |
-| `--patch-only` | Re-apply XIGNCODE disable on an already-unpacked exe |
+| `--patch-loadbalance` / `--lvs` | Bypass hardcoded LoadBalance host (HK → like TH) |
+| `--patch-only` | Re-apply selected patches on an already-unpacked exe |
+
+### LoadBalance (HK)
+
+HK clients whitelist `lvs.talesrunner.com.hk`. TH uses the host/port from the login server.
+
+Tick **Patch LoadBalance** (off by default) to remove that whitelist so HK accepts your server’s LVS address like TH.
 
 ## What it does
 
@@ -48,11 +52,30 @@ Works across builds that share the same XIGNCODE / detection strings (including 
 
 Requires .NET 9 SDK (Windows, x64).
 
+### Visual Studio
+
+**Build** (F6) only compiles. VS will log `TRUnpacker.dll`, but `TRUnpacker.exe` is also created in the same folder — next to many runtime DLLs. That is **not** the single-file build.
+
+For the one standalone exe:
+
+1. Right-click the project → **Publish…**
+2. Choose profile **FolderProfile** (or Folder → `publish\`)
+3. Click **Publish**
+
+Result: `publish\TRUnpacker.exe` (one file, no extra DLLs).
+
+### Command line
+
 ```text
 dotnet publish TRUnpacker.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
 Result: `publish\TRUnpacker.exe`
+
+| Action | Output |
+|---|---|
+| Build | `bin\Release\...\TRUnpacker.exe` + many DLLs |
+| Publish | `publish\TRUnpacker.exe` only |
 
 ## Notes
 

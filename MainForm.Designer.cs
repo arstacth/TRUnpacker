@@ -15,6 +15,7 @@ partial class MainForm
     Button browseButton = null!;
     Button unpackButton = null!;
     CheckBox xignCheck = null!;
+    CheckBox lvsCheck = null!;
     Panel progressPanel = null!;
     TextBox fileLogBox = null!;
     Label statusLabel = null!;
@@ -36,6 +37,7 @@ partial class MainForm
         browseButton = new Button();
         unpackButton = new Button();
         xignCheck = new CheckBox();
+        lvsCheck = new CheckBox();
         progressPanel = new Panel();
         fileLogBox = new TextBox();
         statusLabel = new Label();
@@ -132,16 +134,29 @@ partial class MainForm
         xignCheck.ForeColor = Color.FromArgb(180, 180, 188);
         xignCheck.Location = new Point(16, 156);
         xignCheck.Name = "xignCheck";
-        xignCheck.Size = new Size(280, 20);
+        xignCheck.Size = new Size(200, 20);
         xignCheck.TabIndex = 7;
         xignCheck.Text = "Disable XIGNCODE";
         xignCheck.UseVisualStyleBackColor = false;
+        // lvsCheck
+        lvsCheck.AutoSize = false;
+        lvsCheck.BackColor = Color.FromArgb(22, 22, 24);
+        lvsCheck.Checked = false;
+        lvsCheck.Cursor = Cursors.Hand;
+        lvsCheck.FlatStyle = FlatStyle.Standard;
+        lvsCheck.ForeColor = Color.FromArgb(180, 180, 188);
+        lvsCheck.Location = new Point(230, 156);
+        lvsCheck.Name = "lvsCheck";
+        lvsCheck.Size = new Size(274, 20);
+        lvsCheck.TabIndex = 8;
+        lvsCheck.Text = "Patch LoadBalance";
+        lvsCheck.UseVisualStyleBackColor = false;
         // progressPanel
         progressPanel.BackColor = Color.FromArgb(32, 32, 36);
         progressPanel.Location = new Point(16, 182);
         progressPanel.Name = "progressPanel";
         progressPanel.Size = new Size(488, 6);
-        progressPanel.TabIndex = 8;
+        progressPanel.TabIndex = 9;
         progressPanel.Paint += progressPanel_Paint;
         // fileLogBox
         fileLogBox.BackColor = Color.FromArgb(32, 32, 36);
@@ -173,6 +188,7 @@ partial class MainForm
         Controls.Add(statusLabel);
         Controls.Add(fileLogBox);
         Controls.Add(progressPanel);
+        Controls.Add(lvsCheck);
         Controls.Add(xignCheck);
         Controls.Add(unpackButton);
         Controls.Add(browseButton);

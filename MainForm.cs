@@ -24,6 +24,7 @@ public partial class MainForm : Form
         InitializeComponent();
         DoubleBuffered = true;
         xignCheck.BringToFront();
+        lvsCheck.BringToFront();
 
         MouseDown += OnDragStart;
         MouseMove += OnDragMove;
@@ -125,12 +126,14 @@ public partial class MainForm : Form
 
         string output = Paths.UnpackedOutput(input);
         bool disableXign = xignCheck.Checked;
+        bool patchLvs = lvsCheck.Checked;
 
         _busy = true;
         unpackButton.Enabled = false;
         browseButton.Enabled = false;
         pathBox.Enabled = false;
         xignCheck.Enabled = false;
+        lvsCheck.Enabled = false;
         _log.Clear();
         fileLogBox.Clear();
         SetProgress(0, 8, null);
@@ -144,6 +147,7 @@ public partial class MainForm : Form
                     input,
                     output,
                     disableXigncode: disableXign,
+                    patchLoadBalance: patchLvs,
                     log: line => AppendLog(line),
                     progress: (cur, total, name) =>
                     {
@@ -168,6 +172,7 @@ public partial class MainForm : Form
                     _busy = false;
                     pathBox.Enabled = true;
                     xignCheck.Enabled = true;
+                    lvsCheck.Enabled = true;
                     browseButton.Enabled = true;
                     UpdateReady();
                 });

@@ -137,6 +137,7 @@ sealed class Unpacker
     readonly string _outputPath;
     readonly string _gameDir;
     readonly bool _disableXigncode;
+    readonly bool _patchLoadBalance;
     readonly Action<string>? _log;
     readonly Action<int, int, string?>? _progress;
     readonly Dictionary<ulong, ExportInfo> _exportCache = new();
@@ -146,6 +147,7 @@ sealed class Unpacker
         string inputPath,
         string outputPath,
         bool disableXigncode = true,
+        bool patchLoadBalance = false,
         Action<string>? log = null,
         Action<int, int, string?>? progress = null)
     {
@@ -153,6 +155,7 @@ sealed class Unpacker
         _outputPath = Path.GetFullPath(outputPath);
         _gameDir = FindGameDir(Path.GetDirectoryName(_inputPath)!);
         _disableXigncode = disableXigncode;
+        _patchLoadBalance = patchLoadBalance;
         _log = log;
         _progress = progress;
     }
@@ -193,6 +196,7 @@ sealed class Unpacker
         Log($"Output {_outputPath}");
         Log($"Game   {_gameDir}");
         Log($"XIGNCODE disable: {(_disableXigncode ? "on" : "off")}");
+        Log($"LoadBalance patch: {(_patchLoadBalance ? "on" : "off")}");
         WarnIncompatibleDlls();
 
         byte[] packed = File.ReadAllBytes(_inputPath);
@@ -239,11 +243,7 @@ sealed class Unpacker
                 Rebuild(pe, packedPe, resolved, iatRva, iatSize, restoreAdmin: !_disableXigncode);
 
                 byte[] file = pe.ToPeFile();
-                if (_disableXigncode)
-                {
-                    Progress(7, 8, "Applying XIGNCODE offline patches...");
-                    file = XigncodePatcher.Apply(file, Emit);
-                }
+                file = ApplyOptionalPatches(file);
 
                 File.WriteAllBytes(_outputPath, file);
                 Progress(8, 8, $"Wrote {_outputPath} ({file.Length:N0} bytes)");
@@ -261,6 +261,24 @@ sealed class Unpacker
         {
             try { Directory.Delete(work, true); } catch { /* temp cleanup */ }
         }
+    }
+
+    byte[] ApplyOptionalPatches(byte[] file)
+    {
+        if (_disableXigncode)
+        {
+            Progress(7, 8, "Applying XIGNCODE offline patches...");
+            file = XigncodePatcher.Apply(file, Emit);
+        }
+        if (_patchLoadBalance)
+        {
+            Progress(7, 8, "Patching LoadBalance host whitelist...");
+            var pe = PeImage.Parse(file, virtualLayout: false);
+            var image = (byte[])file.Clone();
+            LoadBalancePatcher.Apply(image, pe, Emit);
+            file = image;
+        }
+        return file;
     }
 
     static bool PathsEqual(string a, string b) =>
@@ -317,11 +335,7 @@ sealed class Unpacker
         Progress(5, 8, "Rebuilding PE imports...");
         Rebuild(pe, filePe, slots, iatRva, iatSize, restoreAdmin: !_disableXigncode);
         byte[] file = pe.ToPeFile();
-        if (_disableXigncode)
-        {
-            Progress(7, 8, "Applying XIGNCODE offline patches...");
-            file = XigncodePatcher.Apply(file, Emit);
-        }
+        file = ApplyOptionalPatches(file);
         File.WriteAllBytes(_outputPath, file);
         Progress(8, 8, $"Wrote {_outputPath} ({file.Length:N0} bytes)");
         Log($"EP=0x{pe.AddressOfEntryPoint:X} ImageBase=0x{pe.ImageBase:X}");
@@ -1330,6 +1344,14 @@ sealed class Unpacker
                 string prev = i > 0 ? group[i - 1].Name ?? "" : "";
                 string next = i + 1 < group.Count ? group[i + 1].Name ?? "" : "";
                 string? neu = FixNameForDll(dll, s.Name, prev, next);
+                // Generic WS2 fallback: kernel32-style name → WSA* if that export exists.
+                if (neu is null && dll.StartsWith("WS2_32", StringComparison.OrdinalIgnoreCase) &&
+                    !s.Name.StartsWith("WSA", StringComparison.OrdinalIgnoreCase))
+                {
+                    string wsa = "WSA" + s.Name;
+                    if (DllExports(dll, wsa))
+                        neu = wsa;
+                }
                 if (neu is null || !DllExports(dll, neu))
                 {
                     Emit($"  SANITIZE fail {dll}!{s.Name}");
@@ -1353,6 +1375,25 @@ sealed class Unpacker
         {
             if (name.Equals("GetLastError", StringComparison.OrdinalIgnoreCase))
                 return "WSAGetLastError";
+            if (name.Equals("SetLastError", StringComparison.OrdinalIgnoreCase))
+                return "WSASetLastError";
+            // Winsock event / wait APIs share IAT space with WSA*; live resolve often hits kernel32 names.
+            if (name.Equals("ResetEvent", StringComparison.OrdinalIgnoreCase))
+                return "WSAResetEvent";
+            if (name.Equals("SetEvent", StringComparison.OrdinalIgnoreCase))
+                return "WSASetEvent";
+            if (name.Equals("CreateEventA", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("CreateEventW", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("CreateEventExA", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("CreateEventExW", StringComparison.OrdinalIgnoreCase))
+                return "WSACreateEvent";
+            if (name.Equals("CloseHandle", StringComparison.OrdinalIgnoreCase))
+                return "WSACloseEvent";
+            if (name.Equals("WaitForMultipleObjects", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("WaitForMultipleObjectsEx", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("WaitForSingleObject", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("WaitForSingleObjectEx", StringComparison.OrdinalIgnoreCase))
+                return "WSAWaitForMultipleEvents";
         }
         if (dll.StartsWith("MSVCP140_ATOMIC", StringComparison.OrdinalIgnoreCase))
         {
